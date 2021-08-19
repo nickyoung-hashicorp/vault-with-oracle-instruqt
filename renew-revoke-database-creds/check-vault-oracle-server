@@ -1,0 +1,19 @@
+# #!/bin/bash -l
+
+set -e
+
+# Create /tmp/skip-check to disable this check
+if [ -f /tmp/skip-check ]; then
+    rm /tmp/skip-check
+    exit 0
+fi
+
+grep -q "vault.*read.*oracle_vault/creds/3mTTL" /root/.bash_history || fail-message "You have not generated credentialss for the 3mTTL role using the Vault CLI yet."
+
+grep -q "vault.*write.*sys/leases/renew.*lease_id=.*increment=" /root/.bash_history || fail-message "You have not renewed the lease with an increment for your credentials yet."
+
+grep -q "vault.*write.*sys/leases/lookup.*lease_id=.*" /root/.bash_history || fail-message "You have not looked up the lease for your credentials yet."
+
+grep -q "vault.*write.*sys/leases/revoke.*lease_id=.*" /root/.bash_history || fail-message "You have not revoked the lease for your credentials yet."
+
+exit 0

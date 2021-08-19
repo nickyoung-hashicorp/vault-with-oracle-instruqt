@@ -1,0 +1,553 @@
+slug: vault-dynamic-database-credentials-with-oracle
+id: tnsk9ndrfxvl
+version: 0.0.1
+type: track
+title: Vault Dynamic Database Credentials with Oracle
+teaser: |
+  Generate dynamic credentials for an Oracle Database 18c Express Edition (XE) from Vault.
+description: |-
+  The Vault Database secrets engine lets you generate dynamic, time-bound credentials for many different databases.
+
+  In this track, you will do this for an Oracle Database 18c Express Edition (XE) that is running on the same server as Vault.
+icon: https://storage.googleapis.com/instruqt-frontend/assets/hashicorp/tracks/vault.png
+tags:
+- vault
+- database
+- dynamic-secrets
+- oracle
+owner: hashicorp
+developers:
+- nyoung@hashicorp.com
+- lmccleary@hashicorp.com
+- yash@hashicorp.com
+private: true
+published: false
+show_timer: true
+challenges:
+- slug: setup-vault
+  id: mscvi5dhmih3
+  type: challenge
+  title: Unseal Vault
+  teaser: |
+    Unseal and login to your Vault server.
+  notes:
+  - type: text
+    contents: |-
+      To start this track, we will begin by unsealing a Vault server that has already been initialized with a single key share.
+
+      Every time the Vault service is restarted, or Vault is manually sealed, it will need to be unsealed using the unseal key.  In production, you would typically have generated multiple key shares upon initialization so multiple administrators are necessary for unsealing Vault.
+
+      To learn more, see this link:
+
+      https://www.vaultproject.io/docs/concepts/seal
+  - type: text
+    contents: |-
+      For this demonstration, you will be working within an Ubuntu 18.04 virtual machine running the Vault 1.7.3 binary and the Oracle 18c Database (Express Edition) in a container.  Vault works with other Oracle database versions as well.  Because the Oracle database plugin is not bundled in the core Vault code tree, this server already has the plugin and dependencies installed to work with Oracle databases.
+
+      You can find the repository with the Vault plugin for Oracle at:
+      https://github.com/hashicorp/vault-plugin-database-oracle
+
+      This particular Instruqt track uses the 0.2.2 version of the Vault plugin for Oracle as well as additional software including:
+       - Oracle Instant Client Basic (Linux x64) 19.9
+       - Oracle Instant Client SQL Plus (Linux x64) 19.9
+       - docker.io, unzip, libaio1, and jq
+  - type: text
+    contents: |-
+      This support article walks through how to enable the Oracle Database Secrets Engine along with troubleshooting guidance:
+
+      https://support.hashicorp.com/hc/en-us/articles/360021245994-Enabling-Oracle-Database-Secrets-Engine
+
+      We will follow similar steps for the configuration of this secret engine.
+  assignment: |-
+    First, examine the contents of the `vault_init.json` file which was generated after initializing Vault with a single key share.  Notice the value of the `"root_token"`.
+    ```
+    cat /etc/vault.d/vault_init.json
+    ```
+
+    Unseal Vault with the single unseal key.
+    ```
+    vault operator unseal $(jq -r .unseal_keys_b64[0] < /etc/vault.d/vault_init.json)
+    ```
+
+    Validate that the `HA Mode` value is `active`, which may take several seconds.
+    ```
+    vault status
+    ```
+
+    Then, login using the root token.
+    ```
+    vault login $(jq -r .root_token < /etc/vault.d/vault_init.json)
+    ```
+
+    Optionally, you can find where we placed the Vault plugin for Oracle and how we reference that in our Vault server configuration.
+    ```
+    ls /data/vault/plugins
+    cat /etc/vault.d/vault.hcl
+    ```
+
+    Finally, we will check to ensure the Oracle Database container is running in a `(healthy)` state.
+    ```
+    docker ps -a
+    ```
+    If the container is in a `(health: starting)` state, you can watch the process until the status changes.  On average, this takes about 1 minute.
+    ```
+    watch docker ps -a
+    ```
+    Once the status is `(healthy)` press `Ctrl+C` to return back to the terminal prompt.
+
+    This container has been configured with Oracle's default port number of 1521 (TCP) to allow Oracle client connections to the database over Oracle's SQL*Net protocol.
+
+    With your Vault server setup and Oracle database running properly, continue by clicking the **Check** button.
+
+    *NOTE:  If the check fails, but you have followed all the steps outlined above, run `touch /tmp/skip-check` in the CLI, then proceed with the exercise.*
+  tabs:
+  - title: Vault CLI
+    type: terminal
+    hostname: vault-oracle-server
+  difficulty: basic
+  timelimit: 600
+- slug: enable-database-secrets-engine
+  id: cgb9kleinuy3
+  type: challenge
+  title: Enable the Oracle Database Secrets Engine
+  teaser: |
+    Enable the Oracle Database secrets engine on the Vault server.
+  notes:
+  - type: text
+    contents: |-
+      Secrets engines are Vault plugins that store, generate, or encrypt data. Secrets engines are incredibly flexible, so it is easiest to think about them in terms of their function.
+
+      Vault's Database secrets engine dynamically generates credentials for many databases.
+
+      To learn more, see these links:
+
+      https://www.vaultproject.io/docs/secrets/databases/
+
+      https://www.vaultproject.io/docs/secrets/databases/oracle
+  - type: text
+    contents: |-
+      The database secrets engine supports the concept of "static roles", which are a 1-to-1 mapping of Vault Roles to usernames in a database. The current password for the database user is stored and automatically rotated by Vault on a configurable period of time.
+
+      This is in contrast to dynamic secrets, which we will demonstrate as part of this track, where a unique username and password pair are generated with each credential request. When credentials are requested for the role, Vault returns a new username and password based on the configured role and its TTL (Time-To-Live).  The client that requested the credentials can then use them to access the target database.  Once the TTL expires or the credentials are manually revoked, the dynamically generated username and password are deleted from the target database.
+
+      To learn more, see these Learn links:
+
+      https://learn.hashicorp.com/tutorials/vault/database-creds-rotation?in=vault/secrets-management
+
+      https://learn.hashicorp.com/tutorials/vault/database-secrets?in=vault/secrets-management
+  assignment: |-
+    The dynamic database credentials are time-bound and are automatically revoked when the Vault lease expires. The credentials can also be revoked at any time.
+
+    All secrets engines must be enabled before they can be used. Check which secrets engines are currently enabled.
+    ```
+    vault secrets list
+    ```
+
+    Note that the database secrets engine is not enabled. Enable it at the path `oracle_vault`.
+    ```
+    vault secrets enable -path=oracle_vault database
+    ```
+
+    Check the secrets engines again and notice the database secret engine is enabled at the path `oracle_vault/`.
+    ```
+    vault secrets list
+    ```
+
+    This path that we defined when we enabled the secret engine is important since we will reference the same path for configuring the secret engine in upcoming challenges.
+
+    Continue by clicking the **Check** button.
+  tabs:
+  - title: Vault CLI
+    type: terminal
+    hostname: vault-oracle-server
+  difficulty: basic
+  timelimit: 600
+- slug: configure-database-secrets-engine
+  id: do8a4ogbeggm
+  type: challenge
+  title: Configure the Oracle Database Secrets Engine
+  teaser: |
+    Configure the Oracle Database Secrets Engine on the Vault server and create 2 roles with different TTLs (Time-To-Live).
+  notes:
+  - type: text
+    contents: In this challenge, you will configure the database secrets engine you enabled in the previous challenge on the path `oracle_vault` to work with the local instance of the Oracle 18c database. We use a specific path rather than the default "database" to illustrate that multiple instances of the database secrets engine could be configured for different lines of business that might each have multiple databases.
+  - type: text
+    contents: |-
+      We will configure a connection string and two roles for the database. The roles will allow dynamic generation of credentials with different lifetimes.
+
+      The first role, `1hTTL`, will generate credentials initially valid for 1 hour with a maximum lifetime of 8 hours. The second role, `3mTTL`, will generate credentials initially valid for 3 minutes with a maximum lifetime of 6 minutes.
+
+      To learn more, see these links:
+
+      https://www.vaultproject.io/docs/secrets/databases/
+
+      https://www.vaultproject.io/docs/secrets/databases/oracle
+  assignment: |-
+    All secrets engines must be configured before they can be used.  In particular, because the Oracle database plugin is not bundled in the core Vault code tree, we will need some additional steps to install the plugin.
+
+    First, we will export the SHA256 value which we will use to register the plugin, the view the value.
+    ```
+    export ORACLE_PLUGIN_SHA256SUM=$(sha256sum /data/vault/plugins/vault-plugin-database-oracle | awk '{print $1}')
+
+    echo ${ORACLE_PLUGIN_SHA256SUM}
+    ```
+
+    Then, register the Vault Oracle plugin using the SHA value.
+    ```
+    vault write \
+      sys/plugins/catalog/database/oracle-database-plugin \
+      sha256="${ORACLE_PLUGIN_SHA256SUM}" \
+      command=vault-plugin-database-oracle
+    ```
+
+    Next, we need to configure the database secrets engine to use the Oracle database plugin with valid connection information. We are configuring a database connection called `wsoracledatabase` that is allowed to use two roles, `1hTTL` and `3mTTL`, that we will create below.
+    ```
+    vault write \
+      oracle_vault/config/wsoracledatabase \
+      plugin_name=oracle-database-plugin \
+      connection_url="{{username}}/{{password}}@//localhost:1521/XE?as=sysdba" \
+      allowed_roles="1hTTL","3mTTL" \
+      username="sys" \
+      password="mysecurepassword"
+
+    ```
+    This will **not** return anything if successful.
+
+    Note that the username and password are templated in the `connection_url` string, getting their values from the `username` and `password` fields.  We do this so that reading the path `oracle_vault/config/wsoracledatabase` will not show them in plaintext.
+
+    To test this, try running this command:
+    ```
+    vault read oracle_vault/config/wsoracledatabase
+    ```
+    You will not see the the actual username or password even though we passed in the initial Oracle username `sys` and password `mysecurepassword` above.
+
+    *Note: You should **not** use the actual `sys` user of the Oracle database (despite the reference to "root credentials"); instead, create a separate user with sufficient privileges that Vault can use to create users and to change its own password.*
+
+    Before we create roles, it is a best practice to rotate the root credentials immediately after the initial configuration of each database.  In this way, even the credentials we configured will only be known by Vault without impacting your ability to create roles and generate dynamic credentials.
+    ```
+    vault write -force oracle_vault/rotate-root/wsoracledatabase
+    ```
+
+    Now, you should create the first of the two roles we will be using, `1hTTL`, which generates credentials with an initial lease of 1 hour that can be renewed for up to 8 hours.
+    ```
+    vault write \
+      oracle_vault/roles/1hTTL \
+      db_name=wsoracledatabase \
+      creation_statements="alter session set \"_ORACLE_SCRIPT\"=true;  CREATE USER {{name}} IDENTIFIED BY {{password}}; GRANT CONNECT TO {{name}}; GRANT CREATE SESSION TO {{name}};" \
+      default_ttl="1h" \
+      max_ttl="8h"
+    ```
+    This should return `Success! Data written to: oracle_vault/roles/1hTTL`.
+
+    And then create the second role, `3mTTL` which has shorter default and max leases of 3 minutes and 6 minutes. (These are intentionally set long enough so that you can use the credentials generated for the role to connect to the database but also see them expire in the next challenge).
+    ```
+    vault write \
+      oracle_vault/roles/3mTTL \
+      db_name=wsoracledatabase \
+      creation_statements="alter session set \"_ORACLE_SCRIPT\"=true;  CREATE USER {{name}} IDENTIFIED BY {{password}}; GRANT CONNECT TO {{name}}; GRANT CREATE SESSION TO {{name}};" \
+      default_ttl="3m" \
+      max_ttl="6m"
+    ```
+    This should return `Success! Data written to: oracle_vault/roles/3mTTL`.
+
+    The database secrets engine is now configured to talk to the Oracle server and is allowed to create users with two different roles. In the next challenge, you'll generate dynamic credentials (username and password) for these roles.
+
+    Continue by clicking the **Check** button.
+  tabs:
+  - title: Vault CLI
+    type: terminal
+    hostname: vault-oracle-server
+  difficulty: basic
+  timelimit: 1200
+- slug: generate-database-creds
+  id: tm0ozmkrewua
+  type: challenge
+  title: Generate and Use Dynamic Database Credentials
+  teaser: |
+    Generate and use dynamic database credentials for the Oracle database.
+  notes:
+  - type: text
+    contents: Even though we use a database within a container for demonstration purposes, the same workflow can apply for Oracle databases running elsewhere, like AWS RDS.  The only change is in how you configure the secret engine.  For example, after creating an Oracle database in AWS RDS, a RDS endpoint will be generated with a username and password that you configured through the AWS console or via Terraform.
+  - type: text
+    contents: |-
+      A configuration could look like this, assuming `ORACLE_RDS_NAME` is the RDS endpoint generated upon completion of database provisioning, and `ORACLE_RDS_USERNAME` and `ORALCE_RDS_PASSWORD` are the username and passwords you configured before provisioning.
+
+      ```
+      vault write \
+        oracle_vault/config/rds-oracle-db \
+        plugin_name=oracle-database-plugin \
+        connection_url="{{username}}/{{password}}@${ORACLE_RDS_ENDPOINT}/${ORACLE_RDS_NAME}" \
+        allowed_roles="RDSID123" \
+        username="${ORACLE_RDS_USERNAME}" \
+        password="${ORACLE_RDS_PASSWORD}"
+      ```
+  - type: text
+    contents: |-
+      In the next challenge, you will dynamically generate credentials (username and password) against the two roles you configured in the previous challenge.
+
+      You will then connect to the Oracle server with the credentials generated against the longer duration role, `1hTTL`. You will also validate that Vault deletes the credentials from the Oracle database after 3 minutes.
+
+      To learn more, see these links:
+
+      https://www.vaultproject.io/docs/secrets/databases/oracle
+
+      https://www.vaultproject.io/docs/secrets/databases/#usage
+
+      https://www.vaultproject.io/api/secret/databases/#generate-credentials
+  assignment: |-
+    Now that you have configured the database secrets engine with a connection and two roles for the Oracle database, you can dynamically generate short-lived credentials against the roles and use them to connect to the database.
+
+    Generate credentials against the `3mTTL` role with the Vault CLI:
+    ```
+    vault read oracle_vault/creds/3mTTL
+    ```
+    This should return something similar to this.  Notice the `lease_duration` that matches what we defined when we configured the role.  Also notice that `username` and `password` values that represent the account that has been created in the Oracle database.
+    ```
+    Key                Value
+    ---                -----
+    lease_id           oracle_vault/creds/3mTTL/EJxNj9qYEboYIHMcSgBRu8HR
+    lease_duration     3m
+    lease_renewable    true
+    password           A1a_amgOpugBnIf3eKHx
+    username           V_ROOT_3MTTL_58W3NLBKQOHM7WLYO
+    ```
+
+    Next, generate credentials against the longer role, `1hTTL`, using the Vault CLI:
+    ```
+    vault read oracle_vault/creds/1hTTL
+    ```
+    This should return something similar to this.  Notice how the `lease_duration` is longer and the `username` and `password` is different since this was generated against a different role.
+    ```
+    Key                Value
+    ---                -----
+    lease_id           oracle_vault/creds/1hTTL/O0iZ2WSObVjAPBP0twY1svu4
+    lease_duration     1h
+    lease_renewable    true
+    password           A1a_omi2y9WIs21dsFjW
+    username           V_ROOT_1HTTL_9PGIEHG98SZ5WLUVZ
+    ```
+
+    Now, we will use another set of credentials to connect to the local Oracle server by saving them as environment variables:
+    ```
+    read ORACLE_DYNAMIC_USER ORACLE_DYNAMIC_PASSWORD ORACLE_DYNAMIC_LEASE_ID < <(echo $(vault read -format=json oracle_vault/creds/1hTTL | jq -r '.data.username, .data.password, .lease_id') )
+    ```
+
+    We will echo this out to see what the values looks like:
+    ```
+    echo "Vault-Generated User : ${ORACLE_DYNAMIC_USER}" && echo "Vault-Generated Password : ${ORACLE_DYNAMIC_PASSWORD}" && echo "Lease ID : ${ORACLE_DYNAMIC_LEASE_ID}"
+    ```
+
+    Here, we are using a 3rd set of dynamically generated credentials to access our Oracle database.
+
+    Finally, we will test by logging into the Oracle 18c database and viewing the us
+    ```
+    sqlplus ${ORACLE_DYNAMIC_USER}/${ORACLE_DYNAMIC_PASSWORD}@//localhost:1521/XE?as=sysdba
+    ```
+
+    You should an output as shown below and be given a `SQL>` prompt:
+    ```
+    SQL*Plus: Release 19.0.0.0.0 - Production on Tue Jun 29 16:46:12 2021
+    Version 19.9.0.0.0
+
+    Copyright (c) 1982, 2020, Oracle.  All rights reserved.
+
+
+    Connected to:
+    Oracle Database 18c Express Edition Release 18.0.0.0.0 - Production
+    Version 18.4.0.0.0
+
+    SQL>
+    ```
+
+    Verify that you can see the other users generated dynamically by Vault
+    ```
+    select username from all_users order by created;
+    ```
+    You may see something similar to this:
+    ```
+    USERNAME
+    ----------------------------------------
+    DVSYS
+    DVF
+    PDBADMIN
+    HR
+    V_ROOT_3MTTL_58W3NLBKQOHM7WLYO
+    V_ROOT_1HTTL_9PGIEHG98SZ5WLUVZ
+    V_ROOT_1HTTL_6AUOSZF2N3ORKQAII
+
+    40 rows selected.
+
+    SQL>
+    ```
+    Notice the `V_ROOT_3MTTL_` username in the table as well as the other `V_ROOT_1HTTL_` accounts we generated.
+
+    *NOTE: If you do not see this username, then 3 minutes has already elapsed and the credential has already been revoked.  You can generate another 3-minute credential using the command `vault read oracle_vault/creds/3mTTL` then continue the exercise.*
+
+    Wait for at least 3 minutes, then re-run the command
+    ```
+    select username from all_users order by created;
+    ```
+
+    You should see that the credential generated against the `3mTTL` role has been deleted
+    ```
+    USERNAME
+    ----------------------------------------
+    DVSYS
+    DVF
+    PDBADMIN
+    HR
+    V_ROOT_1HTTL_9PGIEHG98SZ5WLUVZ
+    V_ROOT_1HTTL_6AUOSZF2N3ORKQAII
+
+    39 rows selected.
+
+    SQL>
+    ```
+    Logout of the Oracle server
+    ```
+    quit
+    ```
+    This should return you to the `root@vault-oracle-server:~#` prompt.
+
+    In the next challenge, you will learn how to renew and revoke database credentials.  Click **Check** to proceed.
+  tabs:
+  - title: Vault CLI
+    type: terminal
+    hostname: vault-oracle-server
+  difficulty: basic
+  timelimit: 1200
+- slug: renew-revoke-database-creds
+  id: 3a35cdzcp9r0
+  type: challenge
+  title: Renew and Revoke Database Credentials
+  teaser: |
+    Renew and revoke database credentials for the Oracle database.
+  notes:
+  - type: text
+    contents: |-
+      In this challenge, you will learn how to renew and revoke credentials generated by Vault's database secrets engine.
+
+      You will see that it is possible to extend the lifetime of generated credentials when they have not yet expired by renewing them. You will also see that they cannot be renewed beyond the `max_ttl` of the role against which the credentials were generated.
+
+      To learn more, see these links:
+
+      https://www.vaultproject.io/api/system/leases/#renew-lease
+
+      https://www.vaultproject.io/api/system/leases/#revoke-lease
+  assignment: |-
+    In addition to using Vault's database secrets engine to generate credentials for databases, you can also use it to extend their lifetime or revoke them.  This challenge will help reinforce the idea of leases.
+
+    First, generate new credentials against the shorter role, `3mTTL`, using the Vault CLI:
+    ```
+    vault read oracle_vault/creds/3mTTL
+    ```
+
+    This should return an output similar to this.  With every dynamic credential, a `lease_id` is generated as well:
+    ```
+    Key                Value
+    ---                -----
+    lease_id           oracle_vault/creds/3mTTL/gx8wM7gVg5IxV6xmwb0fy2wM
+    lease_duration     3m
+    lease_renewable    true
+    password           A1a_q10ytEqKcMDKTFUN
+    username           V_ROOT_3MTTL_TZ4MHSTZDL8LFVG2S
+    ```
+
+    We will generate another set of credentials, then save the lease ID as an environment variable in order to demonstrate how we can renew, lookup, and revoke leases:
+    ```
+    export LEASE_ID=$(vault read oracle_vault/creds/3mTTL -format=json | jq -r .lease_id)
+    ```
+
+    The lease on credentials returned by the database secrets engine can be manually renewed with a call like this:
+    `vault write sys/leases/renew lease_id="<lease_id>" increment="120"`
+    where you should replace `<lease_id>` with the lease_id returned by the previous command. In this case, we are extending the life of the credentials by 2 minutes (120 seconds).
+    ```
+    vault write sys/leases/renew lease_id=$LEASE_ID increment=120
+    ```
+
+    This command should return something like this:
+    ```
+    Key                Value
+    ---                -----
+    lease_id           oracle_vault/creds/3mTTL/Lcn6rBNs6vKvY9Rr4aAsJ2Qs
+    lease_duration     2m
+    lease_renewable    true
+    ```
+
+    Now, examine the current lease with a command like this:
+    `vault write sys/leases/lookup lease_id="<lease_id>"`
+    where you should replace `<lease_id>` with the lease_id returned by either of the last two commands.
+    ```
+    vault write sys/leases/lookup lease_id=$LEASE_ID
+    ```
+    This should return something like this:
+    ```
+    Key             Value
+    ---             -----
+    expire_time     2021-06-29T19:28:10.262763312Z
+    id              oracle_vault/creds/3mTTL/Lcn6rBNs6vKvY9Rr4aAsJ2Qs
+    issue_time      2021-06-29T19:26:10.150259724Z
+    last_renewal    2021-06-29T19:26:10.262763508Z
+    renewable       true
+    ttl             42s
+    ```
+
+    The `ttl` will tell you the remaining time to live of the lease and the credentials. When the lease expires, Vault will delete the credentials from Oracle.
+
+    Extending the lease will only work if the lease has not yet expired. Additionally, the lease on the credentials cannot be extended beyond the original time of their creation plus the duration given by the `max_ttl` parameter of the role.  If either of these conditions apply, you will get an error.
+
+    For instance, if you try to lookup a lease that has already expired, you will get an `invalid lease` error. Try this command to extend the lease with an increment of 600 seconds (10 minutes):
+    ```
+    vault write sys/leases/renew lease_id=$LEASE_ID increment=600
+    ```
+
+    You will see an error similar to this:
+    ```
+    WARNING! The following warnings were returned from Vault:
+        * TTL of "10m" exceeded the effective max_ttl of "5m19s";
+        TTL value is capped accordingly
+    ```
+
+    Finally, let's explore how you can revoke database credentials.  First, generate a new set of credentials and store them as environment variables:
+    ```
+    read ORACLE_DYNAMIC_USER ORACLE_DYNAMIC_PASSWORD ORACLE_DYNAMIC_LEASE_ID < <(echo $(vault read -format=json oracle_vault/creds/3mTTL | jq -r '.data.username, .data.password, .lease_id') )
+    ```
+
+    Try to login to the Oracle server with the new credentials:
+    ```
+    sqlplus ${ORACLE_DYNAMIC_USER}/${ORACLE_DYNAMIC_PASSWORD}@//localhost:1521/XE?as=sysdba
+    ```
+
+    Once connected, quit to exit the SQL prompt:
+    ```
+    quit
+    ```
+
+    Then, revoke the credentials:
+    ```
+    vault write sys/leases/revoke lease_id=$ORACLE_DYNAMIC_LEASE_ID
+    ```
+
+    You should see "Success! Data written to: sys/leases/revoke" returned.
+
+    Try to login to the Oracle server with the revoked credentials:
+    ```
+    sqlplus ${ORACLE_DYNAMIC_USER}/${ORACLE_DYNAMIC_PASSWORD}@//localhost:1521/XE?as=sysdba
+    ```
+
+    You should see an error mesage:
+    ```
+    ERROR:
+    ORA-01017: invalid username/password; logon denied
+    ```
+
+    Press `<Enter>` a couple more times to exit the SQL prompt.
+
+    Congratulations on finishing the Vault Dynamic Database Credentials with Oracle track.  Click **Check** to conclude this exercise.
+  tabs:
+  - title: Vault CLI
+    type: terminal
+    hostname: vault-oracle-server
+  difficulty: basic
+  timelimit: 1200
+checksum: "553684126635680508"

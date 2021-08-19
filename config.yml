@@ -1,0 +1,6 @@
+version: "2"
+virtualmachines:
+- name: vault-oracle-server
+  image: instruqt-hashicorp/vault-1-7-3-with-oracle-db
+  shell: /bin/bash -l
+  machine_type: n1-standard-4

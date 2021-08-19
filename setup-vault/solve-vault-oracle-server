@@ -1,0 +1,15 @@
+# #!/bin/bash -l
+
+# Enable bash history
+HISTFILE=/root/.bash_history
+set -o history
+
+# Unseal Vault
+vault operator unseal $(jq -r .unseal_keys_b64[0] < /etc/vault.d/vault_init.json)
+
+# Wait for active node
+sleep 10
+
+vault login $(jq -r .root_token < /etc/vault.d/vault_init.json)
+
+exit 0

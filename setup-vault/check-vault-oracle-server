@@ -1,0 +1,21 @@
+#!/bin/bash -l
+
+set -e
+
+# Create /tmp/skip-check to disable this check
+if [ -f /tmp/skip-check ]; then
+    rm /tmp/skip-check
+    exit 0
+fi
+
+grep -q "vault operator unseal*" /root/.bash_history || fail-message "You have not unsealed Vault."
+
+grep -q "vault login*" /root/.bash_history || fail-message "You have not logged into Vault."
+
+# CONTAINER_HEALTH=$(docker container ls --format='{{json .}}' | jq -r .Status)
+# if ! [ "$CONTAINER_HEALTH" = "*healthy*" ]; then
+#    fail-message "The Oracle database container is not yet healthy.  You can check on its status using the docker ps command."
+#    exit 1
+# fi
+
+# exit 0

@@ -1,0 +1,21 @@
+# #!/bin/bash -l
+
+set -e
+
+# Create /tmp/skip-check to disable this check
+if [ -f /tmp/skip-check ]; then
+    rm /tmp/skip-check
+    exit 0
+fi
+
+grep -q "vault.*read.*oracle_vault/creds/3mTTL" /root/.bash_history || fail-message "You haven't generated creds for the 3mTTL role using the Vault CLI yet."
+
+grep -q "vault.*read.*oracle_vault/creds/1hTTL" /root/.bash_history || fail-message "You haven't generated creds for the 1hTTL role using the Vault CLI yet."
+
+# grep -q 'read.*ORACLE_DYNAMIC_USER.*ORACLE_DYNAMIC_PASSWORD.*ORACLE_DYNAMIC_LEASE_ID.*<.*<(echo.*$(vault.*read.*-format=json.*oracle_vault/creds/1hTTL.*|.*jq.*-r.*'.data.username,.*.data.password,.*.lease_id').*)' /root/.bash_history || fail-message "You have not stored credentials as ORACLE_DYNAMIC_* environment variables."
+
+# grep -q 'echo.*"Vault-Generated User.*:.*${ORACLE_DYNAMIC_USER}".*&&.*echo.*"Vault-Generated.*Password.*:.*${ORACLE_DYNAMIC_PASSWORD}".*&&.*echo.*"Lease.*ID.*:.*${ORACLE_DYNAMIC_LEASE_ID}"' /root/.bash_history || fail-message "You have not echoed out the ORACLE_DYNAMIC_* environment variables yet."
+
+grep -q "sqlplus.*@//localhost:1521/XE?as=sysdba" /root/.bash_history || fail-message "You have not logged into the Oracle database using one of the dynamically generated credentials."
+
+exit 0

@@ -1,0 +1,23 @@
+# #!/bin/bash -l
+
+set -e
+
+# Create /tmp/skip-check to disable this check
+if [ -f /tmp/skip-check ]; then
+    rm /tmp/skip-check
+    exit 0
+fi
+
+grep -q "export.*ORACLE_PLUGIN_SHA256SUM=$(sha256sum /data/vault/plugins/vault-plugin-database-oracle.*|.*awk.*'{print $1}')" /root/.bash_history || fail-message "You have not saved the ORACLE_PLUGIN_SHA256SUM environment variable with the plugin's SHA value."
+
+grep -q "vault.*write.*sys/plugins/catalog/database/oracle-database-plugin.*sha256=.*command=vault-plugin-database-oracle" /root/.bash_history || fail-message "You have not registered the Vault Oracle plugin."
+
+grep -q 'vault.*write.*oracle_vault/config/wsoracledatabase.*plugin_name=oracle-database-plugin.*connection_url="{{username}}/{{password}}@//localhost:1521/XE?as=sysdba".*allowed_roles="1hTTL","3mTTL".*username="sys".*password="mysecurepassword"' /root/.bash_history || fail-message "You have not configured the Oracle plugin with connection information and allowed roles."
+
+grep -q "vault.*read.*oracle_vault/config/wsoracledatabase" /root/.bash_history || fail-message "You have not checked the configuration to validate the connection details."
+
+grep -q 'vault.*write.*oracle_vault/roles/1hTTL.*default_ttl="1h".*max_ttl="8h"' /root/.bash_history || fail-message "You have not configured the 1hTTL database role."
+
+grep -q 'vault.*write.*oracle_vault/roles/3mTTL.*default_ttl="3m".*max_ttl="6m"' /root/.bash_history || fail-message "You have not configured the 3mTTL database role."
+
+exit 0
