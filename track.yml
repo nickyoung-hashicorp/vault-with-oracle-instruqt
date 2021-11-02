@@ -22,7 +22,7 @@ developers:
 - yash@hashicorp.com
 - neil@hashicorp.com
 private: true
-published: false
+published: true
 show_timer: true
 skipping_enabled: true
 challenges:
@@ -551,5 +551,5 @@ challenges:
     type: terminal
     hostname: vault-oracle-server
   difficulty: basic
-  timelimit: 1200
-checksum: "16014124065789421949"
+  timelimit: 12000
+checksum: "6529848349328749239"
