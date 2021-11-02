@@ -1,40 +1,44 @@
-# #!/bin/bash -l
+#!/bin/bash -l
 
-# #Enable bash history
-# HISTFILE=/root/.bash_history
-# set -o history
+#Enable bash history
+HISTFILE=/root/.bash_history
+set -o history
 
-# # Configure a connection for the database secrets engine
-# vault write lob_a/workshop/database/config/wsmysqldatabase \
-#   plugin_name=mysql-database-plugin \
-#   connection_url="{{username}}:{{password}}@tcp(localhost:3306)/" \
-#   allowed_roles="workshop-app","workshop-app-long" \
-#   username="hashicorp" \
-#   password="Password123"
+# Export the SHA256 value used to register the plugin
+export ORACLE_PLUGIN_SHA256SUM=$(sha256sum /data/vault/plugins/vault-plugin-database-oracle | awk '{print $1}')
 
-# # Login to MySQL server with root creds
-# # Simulating success
-# echo -e "mysql -u hashicorp -pPassword123" >> /root/.bash_history
+# Register the Vault Oracle plugin using the SHA value
+vault write \
+  sys/plugins/catalog/database/oracle-database-plugin \
+  sha256="${ORACLE_PLUGIN_SHA256SUM}" \
+  command=vault-plugin-database-oracle
 
-# # Rotate the root credentials
-# vault write -force lob_a/workshop/database/rotate-root/wsmysqldatabase
+# Configure the database secret engine with the plugin
+vault write \
+  oracle_vault/config/wsoracledatabase \
+  plugin_name=oracle-database-plugin \
+  connection_url="{{username}}/{{password}}@//localhost:1521/XE?as=sysdba" \
+  allowed_roles="1hTTL","3mTTL" \
+  username="sys" \
+  password="mysecurepassword"
 
-# # Login to MySQL server with root creds
-# # Simulating failure
-# echo -e "mysql -u hashicorp -pPassword123" >> /root/.bash_history
+# Rotate the root credential
+vault write -force oracle_vault/rotate-root/wsoracledatabase
 
-# # Configure a role for the database secrets engine
-# vault write lob_a/workshop/database/roles/workshop-app-long \
-#   db_name=wsmysqldatabase \
-#   creation_statements="CREATE USER '{{name}}'@'%' IDENTIFIED BY '{{password}}';GRANT ALL ON my_app.* TO '{{name}}'@'%';" \
-#   default_ttl="1h" \
-#   max_ttl="24h"
+# Create the 1st role with a 1-hour TTL
+vault write \
+  oracle_vault/roles/1hTTL \
+  db_name=wsoracledatabase \
+  creation_statements="alter session set \"_ORACLE_SCRIPT\"=true;  CREATE USER {{name}} IDENTIFIED BY {{password}}; GRANT CONNECT TO {{name}}; GRANT CREATE SESSION TO {{name}};" \
+  default_ttl="1h" \
+  max_ttl="8h"
 
-# # Configure a role for the database secrets engine
-# vault write lob_a/workshop/database/roles/workshop-app \
-#   db_name=wsmysqldatabase \
-#   creation_statements="CREATE USER '{{name}}'@'%' IDENTIFIED BY '{{password}}';GRANT ALL ON my_app.* TO '{{name}}'@'%';" \
-#   default_ttl="3m" \
-#   max_ttl="6m"
+# Create the 2nd role with a 3-minute TTL
+vault write \
+  oracle_vault/roles/3mTTL \
+  db_name=wsoracledatabase \
+  creation_statements="alter session set \"_ORACLE_SCRIPT\"=true;  CREATE USER {{name}} IDENTIFIED BY {{password}}; GRANT CONNECT TO {{name}}; GRANT CREATE SESSION TO {{name}};" \
+  default_ttl="3m" \
+  max_ttl="6m"
 
-# exit 0
+exit 0

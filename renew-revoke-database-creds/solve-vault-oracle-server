@@ -4,16 +4,22 @@
 HISTFILE=/root/.bash_history
 set -o history
 
-# Generate creds for the workshop-app role using the Vault CLI
-{ read LEASE_ID; } < <(vault read -format=json lob_a/workshop/database/creds/workshop-app | jq -r '.lease_id')
+# Generate new creds against 3mTTL role
+vault read oracle_vault/creds/3mTTL
 
-# Extend the lease of the credentials by 2 minutes
-vault write sys/leases/renew lease_id="${LEASE_ID}" increment="120"
+# Save the LEASE_ID as environment variable
+export LEASE_ID=$(vault read oracle_vault/creds/3mTTL -format=json | jq -r .lease_id)
 
-# Lookup the lease of the credentials
-# vault write sys/leases/lookup lease_id="${LEASE_ID}"
+# Increment the lease
+vault write sys/leases/renew lease_id=$LEASE_ID increment=120
 
-# Revoke the credentials
-vault write sys/leases/revoke lease_id="${LEASE_ID}"
+# Examine the current lease
+vault write sys/leases/lookup lease_id=$LEASE_ID
+
+# Generate new creds against 3mTTL role
+read ORACLE_DYNAMIC_USER ORACLE_DYNAMIC_PASSWORD ORACLE_DYNAMIC_LEASE_ID < <(echo $(vault read -format=json oracle_vault/creds/3mTTL | jq -r '.data.username, .data.password, .lease_id') )
+
+# Revoke the lease
+vault write sys/leases/revoke lease_id=$ORACLE_DYNAMIC_LEASE_ID
 
 exit 0

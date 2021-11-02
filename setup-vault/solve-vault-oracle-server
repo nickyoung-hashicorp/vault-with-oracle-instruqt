@@ -10,6 +10,7 @@ vault operator unseal $(jq -r .unseal_keys_b64[0] < /etc/vault.d/vault_init.json
 # Wait for active node
 sleep 10
 
+# Log into Vault with the root token
 vault login $(jq -r .root_token < /etc/vault.d/vault_init.json)
 
 exit 0

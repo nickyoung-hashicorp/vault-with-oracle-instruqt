@@ -20,6 +20,7 @@ developers:
 - nyoung@hashicorp.com
 - lmccleary@hashicorp.com
 - yash@hashicorp.com
+- neil@hashicorp.com
 private: true
 published: false
 show_timer: true
@@ -550,4 +551,4 @@ challenges:
     hostname: vault-oracle-server
   difficulty: basic
   timelimit: 1200
-checksum: "553684126635680508"
+checksum: "7050691397169180809"

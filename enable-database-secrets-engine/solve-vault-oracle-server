@@ -4,9 +4,6 @@
 HISTFILE=/root/.bash_history
 set -o history
 
-# List Vault Secrets
-vault secrets list
-
 # Enable the Database secrets engine
 vault secrets enable -path=oracle_vault database
 
