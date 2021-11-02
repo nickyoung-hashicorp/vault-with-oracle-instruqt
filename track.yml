@@ -24,6 +24,7 @@ developers:
 private: true
 published: false
 show_timer: true
+skipping_enabled: true
 challenges:
 - slug: setup-vault
   id: mscvi5dhmih3
@@ -551,4 +552,4 @@ challenges:
     hostname: vault-oracle-server
   difficulty: basic
   timelimit: 1200
-checksum: "7050691397169180809"
+checksum: "16042014279032090370"
