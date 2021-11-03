@@ -60,7 +60,7 @@ challenges:
 
       https://support.hashicorp.com/hc/en-us/articles/360021245994-Enabling-Oracle-Database-Secrets-Engine
 
-      We will follow similar steps for the configuration of this secret engine.
+      We will follow similar steps for the configuration of this secrets engine.
   assignment: |-
     First, examine the contents of the `vault_init.json` file which was generated after initializing Vault with a single key share.  Notice the value of the `"root_token"`.
     ```
@@ -151,12 +151,12 @@ challenges:
     vault secrets enable -path=oracle_vault database
     ```
 
-    Check the secrets engines again and notice the database secret engine is enabled at the path `oracle_vault/`.
+    Check the secrets engines again and notice the database secrets engine is enabled at the path `oracle_vault/`.
     ```
     vault secrets list
     ```
 
-    This path that we defined when we enabled the secret engine is important since we will reference the same path for configuring the secret engine in upcoming challenges.
+    This path that we defined when we enabled the secrets engine is important since we will reference the same path for configuring the secrets engine in upcoming challenges.
 
     Continue by clicking the **Check** button.
   tabs:
@@ -270,7 +270,7 @@ challenges:
     Generate and use dynamic database credentials for the Oracle database.
   notes:
   - type: text
-    contents: Even though we use a database within a container for demonstration purposes, the same workflow can apply for Oracle databases running elsewhere, like AWS RDS.  The only change is in how you configure the secret engine.  For example, after creating an Oracle database in AWS RDS, a RDS endpoint will be generated with a username and password that you configured through the AWS console or via Terraform.
+    contents: Even though we use a database within a container for demonstration purposes, the same workflow can apply for Oracle databases running elsewhere, like AWS RDS.  The only change is in how you configure the secrets engine.  For example, after creating an Oracle database in AWS RDS, a RDS endpoint will be generated with a username and password that you configured through the AWS console or via Terraform.
   - type: text
     contents: |-
       A configuration could look like this, assuming `ORACLE_RDS_ENDPOINT` is the RDS endpoint generated upon completion of database provisioning, `ORACLE_RDS_NAME` is the name or SID of the database, and `ORACLE_RDS_USERNAME` and `ORALCE_RDS_PASSWORD` are the username and passwords you configured before provisioning.
