@@ -43,13 +43,14 @@ challenges:
 
       https://www.vaultproject.io/docs/concepts/seal
   - type: text
+    contents: In this track, you will be working within an Ubuntu 18.04 virtual machine running the Vault 1.7.3 binary and the Oracle 18c Database (Express Edition) in a container.  Vault works with other Oracle database versions as well.  Because the Oracle database plugin is not bundled in the core Vault code tree, this server already has the plugin and dependencies installed to work with Oracle databases.
+  - type: text
     contents: |-
-      For this demonstration, you will be working within an Ubuntu 18.04 virtual machine running the Vault 1.7.3 binary and the Oracle 18c Database (Express Edition) in a container.  Vault works with other Oracle database versions as well.  Because the Oracle database plugin is not bundled in the core Vault code tree, this server already has the plugin and dependencies installed to work with Oracle databases.
-
       You can find the repository with the Vault plugin for Oracle at:
       https://github.com/hashicorp/vault-plugin-database-oracle
-
-      This particular Instruqt track uses the 0.2.2 version of the Vault plugin for Oracle as well as additional software including:
+  - type: text
+    contents: |-
+      This particular track uses the 0.2.2 version of the Vault plugin for Oracle as well as additional software including:
        - Oracle Instant Client Basic (Linux x64) 19.9
        - Oracle Instant Client SQL Plus (Linux x64) 19.9
        - docker.io, unzip, libaio1, and jq
@@ -127,11 +128,11 @@ challenges:
 
       https://www.vaultproject.io/docs/secrets/databases/oracle
   - type: text
+    contents: The database secrets engine supports the concept of "static roles", which are a 1-to-1 mapping of Vault Roles to usernames in a database. The current password for the database user is stored and automatically rotated by Vault on a configurable period of time.
+  - type: text
+    contents: This is in contrast to dynamic secrets, which we will demonstrate as part of this track, where a unique username and password pair are generated with each credential request. When credentials are requested for the role, Vault returns a new username and password based on the configured role and its TTL (Time-To-Live).  The client that requested the credentials can then use them to access the target database.  Once the TTL expires or the credentials are manually revoked, the dynamically generated username and password are deleted from the target database.
+  - type: text
     contents: |-
-      The database secrets engine supports the concept of "static roles", which are a 1-to-1 mapping of Vault Roles to usernames in a database. The current password for the database user is stored and automatically rotated by Vault on a configurable period of time.
-
-      This is in contrast to dynamic secrets, which we will demonstrate as part of this track, where a unique username and password pair are generated with each credential request. When credentials are requested for the role, Vault returns a new username and password based on the configured role and its TTL (Time-To-Live).  The client that requested the credentials can then use them to access the target database.  Once the TTL expires or the credentials are manually revoked, the dynamically generated username and password are deleted from the target database.
-
       To learn more, see these Learn links:
 
       https://learn.hashicorp.com/tutorials/vault/database-creds-rotation?in=vault/secrets-management
@@ -272,7 +273,7 @@ challenges:
     contents: Even though we use a database within a container for demonstration purposes, the same workflow can apply for Oracle databases running elsewhere, like AWS RDS.  The only change is in how you configure the secret engine.  For example, after creating an Oracle database in AWS RDS, a RDS endpoint will be generated with a username and password that you configured through the AWS console or via Terraform.
   - type: text
     contents: |-
-      A configuration could look like this, assuming `ORACLE_RDS_NAME` is the RDS endpoint generated upon completion of database provisioning, and `ORACLE_RDS_USERNAME` and `ORALCE_RDS_PASSWORD` are the username and passwords you configured before provisioning.
+      A configuration could look like this, assuming `ORACLE_RDS_ENDPOINT` is the RDS endpoint generated upon completion of database provisioning, `ORACLE_RDS_NAME` is the name or SID of the database, and `ORACLE_RDS_USERNAME` and `ORALCE_RDS_PASSWORD` are the username and passwords you configured before provisioning.
 
       ```
       vault write \
@@ -287,7 +288,7 @@ challenges:
     contents: |-
       In the next challenge, you will dynamically generate credentials (username and password) against the two roles you configured in the previous challenge.
 
-      You will then connect to the Oracle server with the credentials generated against the longer duration role, `1hTTL`. You will also validate that Vault deletes the credentials from the Oracle database after 3 minutes.
+      You will then connect to the Oracle server with the credentials generated against the longer duration role, `1hTTL`. You will also validate that Vault deletes the credentials for the `3mTTL` role from the Oracle database after 3 minutes.
 
       To learn more, see these links:
 
@@ -460,9 +461,7 @@ challenges:
     export LEASE_ID=$(vault read oracle_vault/creds/3mTTL -format=json | jq -r .lease_id)
     ```
 
-    The lease on credentials returned by the database secrets engine can be manually renewed with a call like this:
-    `vault write sys/leases/renew lease_id="<lease_id>" increment="120"`
-    where you should replace `<lease_id>` with the lease_id returned by the previous command. In this case, we are extending the life of the credentials by 2 minutes (120 seconds).
+    The lease on credentials returned by the database secrets engine can be manually renewed.  In this case, we are extending the life of the credentials by 2 minutes (120 seconds):
     ```
     vault write sys/leases/renew lease_id=$LEASE_ID increment=120
     ```
@@ -476,9 +475,7 @@ challenges:
     lease_renewable    true
     ```
 
-    Now, examine the current lease with a command like this:
-    `vault write sys/leases/lookup lease_id="<lease_id>"`
-    where you should replace `<lease_id>` with the lease_id returned by either of the last two commands.
+    Now, examine the current lease:
     ```
     vault write sys/leases/lookup lease_id=$LEASE_ID
     ```
@@ -552,4 +549,4 @@ challenges:
     hostname: vault-oracle-server
   difficulty: basic
   timelimit: 12000
-checksum: "6529848349328749239"
+checksum: "15780926120298713823"
